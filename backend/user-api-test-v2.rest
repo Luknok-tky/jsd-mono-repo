@@ -8,20 +8,37 @@ POST {{baseUrl}}/users
 Content-Type: application/json
 
 {
-    "username": "AB",
-    "email": "ab@example.com",
+    "username": "AB_New",
+    "email": "ab_unique@example.com",
     "password": "pass123"
 }
 
 ### Update a user
-PUT {{baseUrl}}/users/6a9e723161b786b0d7f338d5
+PUT {{baseUrl}}/users/6a9fc2937434642c80fb30c9
 Content-Type: application/json
 
 {
-  "username": "AB_Updated",
+  "username": "AB_Update",
   "email": "ab_new@example.com",
   "password": "pass123"
 }
 ### Delete a user
-DELETE {{baseUrl}}/users/6a9e723161b786b0d7f338d5
+DELETE {{baseUrl}}/users/6a9fc2937434642c80fb30c9
 
+### Login User (Correct Password)
+POST {{baseUrl}}/users/login
+Content-Type: application/json
+
+{
+  "email": "ab@example.com",
+  "password": "pass123"
+}
+
+### Login User (Wrong Password)
+POST {{baseUrl}}/users/login
+Content-Type: application/json
+
+{
+  "email": "ab_new@example.com",
+  "password": "pass123"
+}

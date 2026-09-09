@@ -87,3 +87,32 @@ router.delete("/:id", async (req, res, next) => {
     next(err);
   }
 });
+
+// Login user
+router.post("/login", async (req, res, next) => {
+  try {
+    const { email, password } = req.body;
+
+    if (!email || !password) {
+      return res.status(400).json({ error: "Email and password are required" });
+    }
+
+    // 1. ค้นหา User ตาม Email
+    const user = await User.findOne({ email }).select("+password");
+    if (!user) {
+      return res.status(401).json({ error: "Invalid email or password" });
+    }
+
+    // 2. ตรวจสอบรหัสผ่านด้วย bcrypt.compare
+    const isPasswordValid = await bcrypt.compare(password, user.password);
+    if (!isPasswordValid) {
+      return res.status(401).json({ error: "Invalid email or password" });
+    }
+
+    // 3. ส่ง Response กลับโดยตัด password ออก
+    const { password: _password, ...userWithoutPassword } = user.toObject();
+    return res.json({ message: "Login successful", user: userWithoutPassword });
+  } catch (err) {
+    next(err);
+  }
+});
