@@ -1,48 +1,47 @@
 import bcrypt from "bcrypt";
 import { Router } from "express";
 import { User } from "../../models/user.model.js";
+import jwt from "jsonwebtoken";
+import { authUser } from "../../middlewares/authUser.js";
 
 export const router = Router();
 
 // Read users
 router.get("/", async (req, res, next) => {
-    try{
-        // 1. Get user data from db
-const users = await User.find();
-        // 2. Send response object back to client
-return res.json(users)
-
-    }catch(err){
-        next(err);
-    }
-    
+  try {
+    const users = await User.find();
+    return res.json(users);
+  } catch (err) {
+    next(err);
+  }
 });
 
 // Create user
 router.post("/", async (req, res, next) => {
-    try{
-        const { username, email, password } = req.body;
+  try {
+    const { username, role, email, password } = req.body;
 
-        if( !username || !email || !password ) {
-            return res.status(400).json({error: "username, email and password are required"});
-        }
+    if (!username || !role || !email || !password) {
+      return res.status(400).json({ error: "username, role, email and password are required" });
+    }
 
-     const saltRounds = 12;
-     const hashedPassword = await bcrypt.hash(password, saltRounds);
+    const saltRounds = 12;
+    const hashedPassword = await bcrypt.hash(password, saltRounds);
 
-     const newUser = await User.create({ 
-      username, 
+    // ใช้ hashedPassword ในการบันทึก
+    const newUser = await User.create({ 
+      username,
+      role, 
       email, 
-      password 
+      password: hashedPassword 
     });
 
-     const {password: _password, ...userWithoutPassword} = newUser.toObject()
-     return res.status(201).json(userWithoutPassword);
+    const { password: _password, ...userWithoutPassword } = newUser.toObject();
+    return res.status(201).json(userWithoutPassword);
 
-    } catch (err) {
-      next(err);
-    }
-    
+  } catch (err) {
+    next(err);
+  }
 });
 
 // Update user
@@ -62,9 +61,7 @@ router.put("/:id", async (req, res, next) => {
     );
 
     if (!updatedUser) {
-      return res
-      .status(404)
-      .json({ error: "User not found" });
+      return res.status(404).json({ error: "User not found" });
     }
 
     const { password: _password, ...userWithoutPassword } = updatedUser.toObject();
@@ -94,24 +91,85 @@ router.post("/login", async (req, res, next) => {
     const { email, password } = req.body;
 
     if (!email || !password) {
-      return res.status(400).json({ error: "Email and password are required" });
+      return res.status(400).json({ error: "Email and password are required!" });
     }
 
-    // 1. ค้นหา User ตาม Email
     const user = await User.findOne({ email }).select("+password");
+
     if (!user) {
-      return res.status(401).json({ error: "Invalid email or password" });
+      return res.status(400).json({ error: "User not found!" });
     }
 
-    // 2. ตรวจสอบรหัสผ่านด้วย bcrypt.compare
-    const isPasswordValid = await bcrypt.compare(password, user.password);
-    if (!isPasswordValid) {
-      return res.status(401).json({ error: "Invalid email or password" });
+    const isMatched = await bcrypt.compare(password, user.password);
+
+    if (!isMatched) {
+      return res.status(400).json({ success: false, message: "Incorrect password!" });
     }
 
-    // 3. ส่ง Response กลับโดยตัด password ออก
-    const { password: _password, ...userWithoutPassword } = user.toObject();
-    return res.json({ message: "Login successful", user: userWithoutPassword });
+    const token = jwt.sign({ userId: user._id }, process.env.JWT_SECRET, {
+      expiresIn: "1h",
+    });
+
+    const isProd = process.env.NODE_ENV === "production";
+
+    res.cookie("accessToken", token, {
+      httpOnly: true, 
+      secure: isProd, 
+      sameSite: isProd ? "none" : "lax", 
+      path: "/",
+      maxAge: 60 * 60 * 1000,
+    });
+
+    return res.status(200).json({
+      success: true,
+      message: "Login successful!",
+      user: {
+        _id: user._id,
+        username: user.username,
+        role: user.role,
+        email: user.email,
+      },
+    });
+  } catch (err) {
+    next(err);
+  }
+});
+
+// Logout user
+router.post("/logout", async (req, res) => {
+  const isProd = process.env.NODE_ENV === "production";
+
+  // แก้ไข: วงเล็บถูกตำแหน่ง + ส่ง json response กลับ
+  res.clearCookie("accessToken", {
+    httpOnly: true,
+    secure: isProd,
+    sameSite: isProd ? "none" : "lax",
+    path: "/",
+  });
+
+  return res.status(200).json({ success: true, message: "Logout successful!" });
+});
+
+// Check user token
+router.get("/auth", authUser, async (req, res, next) => {
+  try {
+    const userId = req.user.user._id;
+    const user = await User.findById(userId);
+
+    if (!user) {
+      return res.status(401).json({ success: false, message: "User not found!" });
+    }
+
+    return res.status(200).json({
+      success: true, 
+      data: {
+        _id: user._id, 
+        username: user.username,
+        email: user.email, 
+        role: user.role
+      }
+    });
+
   } catch (err) {
     next(err);
   }

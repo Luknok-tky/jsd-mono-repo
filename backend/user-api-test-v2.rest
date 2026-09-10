@@ -9,7 +9,8 @@ Content-Type: application/json
 
 {
     "username": "AB_New",
-    "email": "ab_unique@example.com",
+    "role": "admin",
+    "email": "new_admin@example.com",
     "password": "pass123"
 }
 
@@ -22,6 +23,7 @@ Content-Type: application/json
   "email": "ab_new@example.com",
   "password": "pass123"
 }
+
 ### Delete a user
 DELETE {{baseUrl}}/users/6a9fc2937434642c80fb30c9
 
@@ -30,7 +32,7 @@ POST {{baseUrl}}/users/login
 Content-Type: application/json
 
 {
-  "email": "ab@example.com",
+  "email": "new_admin@example.com",
   "password": "pass123"
 }
 
@@ -39,6 +41,6 @@ POST {{baseUrl}}/users/login
 Content-Type: application/json
 
 {
-  "email": "ab_new@example.com",
-  "password": "pass123"
+  "email": "new_admin@example.com",
+  "password": "wrongpassword123"
 }
